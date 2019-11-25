@@ -21,9 +21,6 @@ for (i in filenames) {
   assign(make.names(i), read.csv(filepath, stringsAsFactors = FALSE))
 }
 
-#FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE)
-
-
 # Set header, filter unknowns ---------------------------------------
 runs <- grep(matching.variable, names(.GlobalEnv), value = TRUE, ignore.case = TRUE)
 runlist <- do.call("list", mget(runs))
