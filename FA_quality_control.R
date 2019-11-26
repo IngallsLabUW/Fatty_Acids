@@ -1,5 +1,9 @@
 # Quality control script
 
+# Use those FAs that have _Std in the metabolite.name. compare to RT expected, not value. know that 1.7 difference between expected and value is pretty significant in the RP ? space. 
+# Check out weird blank flags. drop blk_blk_20, not representative. 
+# do different QCs for size fractionation. 
+
 FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
   rename(Metabolite.name = Name) %>%
   rename(RT.Expected = RT) %>%
@@ -9,7 +13,7 @@ FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FAL
 
 # Parameter assignment ----------------------------------------------------
 area.min   <- 1000
-RT.flex    <- 0.4
+RT.flex    <- 0.4 # This will need to go into standards for predictive RTs. 
 blk.thresh <- 0.3
 SN.min     <- 4
 

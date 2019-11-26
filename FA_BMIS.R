@@ -76,7 +76,6 @@ IS.Raw.Area.Plot <- ggplot(HILIC.IS.data, aes(x = Replicate.Name, y = Area.with.
 
 
 # Edit data so names match-----------------------------------------------------------------
-
 HILIC.long  <- HILIC.NoIS %>%
   rename(Mass.Feature = Metabolite.name) %>%
   select(Replicate.Name, Mass.Feature, Area.with.QC) %>%
