@@ -75,7 +75,9 @@ final.table <- add.blk.Flag %>%
   ungroup(Metabolite.name) %>%
   mutate(Metabolite.name = as.character(Metabolite.name)) 
 
-
+RT.comparisons <- final.table %>%
+  select(Replicate.Name, Metabolite.name, RT.Value, RT.Expected) %>%
+  mutate(RT.Difference = (abs(RT.Value - RT.Expected)))
 
 # Print to file with comments and new name! -----------------------------
 Description <- c("Hello! Welcome to the world of MSDIAL QE Quality Control! ",
