@@ -19,6 +19,14 @@ library(tidyr)
 options(scipen=999)
 
 SetHeader <- function(df) {
+  # Remove empty or unnecessary lines from machine output, and make column names headers.
+  #
+  # Args
+  #   df: Raw output file from MSDial.
+  #
+  # Returns
+  #   df: modified dataframe with correct headers and no empty lines.
+  #
   df <- df[!(is.na(df[1]) | df[1]==""), ]
   colnames(df) <- make.names(as.character(unlist(df[1,])))
   df <- df[-1, ]
@@ -26,17 +34,17 @@ SetHeader <- function(df) {
   return(df)
 }
 
-FilterUnknowns <- function(df) {
-  df <- df %>%  
-    filter(Metabolite.name != 'Unknown') %>%
-    select(-c(Average.Rt.min., Formula, Ontology, INCHIKEY, SMILES, Isotope.tracking.parent.ID, Isotope.tracking.weight.number, 
-              MS1.isotopic.spectrum, MS.MS.spectrum, Average.Mz, Post.curation.result, Fill.., Annotation.tag..VS1.0., RT.matched, 
-              m.z.matched, MS.MS.matched, Manually.modified, Total.score:Fragment.presence..))
-}
-
 RemoveCsv <- function(full.filepaths) {
+  # Remove a .csv file extension and obtain basename from a given list of filepaths.
+  #
+  # Args
+  #   Character strings of filepaths in a directory.
+  #
+  # Returns
+  #   Character strings of file basenames, without a csv extension.
+  #
   no.path <- substr(full.filepaths, 1, nchar(full.filepaths)-4)
-  no.ID <-   gsub("\\_.*","", no.path)
+  no.ID <-   gsub("\\_.*", "", no.path)
   
   return(no.path)
 }
@@ -49,10 +57,10 @@ ChangeClasses <- function(df) {
 }
 
 IdentifyRunTypes <- function(msdial.file) {
-  # Identify run typfes and return each unique value present in the Skyline output.
+  # Identify run typfes and return each unique value present in the machine output.
   #
   # Args
-  #   msdial.file: Raw output file from Skyline.
+  #   msdial.file: Raw output file from MSDial.
   #
   # Returns
   #   run.type: list of labels identifying the run types, isolated from Replicate.Name.
@@ -108,3 +116,12 @@ CheckBlankMatcher <- function(blank.matcher) {
   
   return(blank.matcher)
 }
+
+# Unused functions --------------------------------------------------------
+# FilterUnknowns <- function(df) {
+#   df <- df %>%  
+#     filter(Metabolite.name != 'Unknown') %>%
+#     select(-c(Average.Rt.min., Formula, Ontology, INCHIKEY, SMILES, Isotope.tracking.parent.ID, Isotope.tracking.weight.number, 
+#               MS1.isotopic.spectrum, MS.MS.spectrum, Average.Mz, Post.curation.result, Fill.., Annotation.tag..VS1.0., RT.matched, 
+#               m.z.matched, MS.MS.matched, Manually.modified, Total.score:Fragment.presence..))
+# }

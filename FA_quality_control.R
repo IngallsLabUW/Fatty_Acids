@@ -45,8 +45,7 @@ blank.table <- combined %>%
   select(-Blk.Area) %>%
   unique()
 
-
-# Create datasets for different flag types.
+# Create datasets for different flag types ------------------------------
 SN.Area.Flags <- combined %>%
   arrange(Metabolite.name) %>%
   mutate(SN.Flag       = ifelse(((SN.Value) < SN.min), "SN.Flag", NA)) %>%
@@ -66,25 +65,26 @@ add.blk.Flag <- add.RT.Flag %>%
   select(-c("Blk.min", "Blk.max"))
 
 
-# Finally, combine all the flags.
+# Finally, combine all the flags. -----------------------------------------
 final.table <- add.blk.Flag %>%
   mutate(all.Flags      = paste(SN.Flag, Area.Min.Flag, RT.Flag, Blank.Flag, sep = ", ")) %>%
   mutate(all.Flags      = as.character(all.Flags %>% str_remove_all("NA, ") %>% str_remove_all("NA"))) %>%
-  mutate(all.Flags      = ifelse(all.Flags == "", NA, all.Flags))
+  mutate(all.Flags      = ifelse(all.Flags == "", NA, all.Flags)) %>%
   mutate(Area.with.QC   = ifelse(is.na(Area.Min.Flag), Area.Value, NA)) %>%
-  select(Replicate.Name:Area.Value, Area.with.QC, everything()) %>%
+  select(Replicate.Name:Area.Value, Area.with.QC, MZ.Value, SN.Value, RT.Value, RT.Expected, everything()) %>%
   ungroup(Metabolite.name) %>%
   mutate(Metabolite.name = as.character(Metabolite.name)) 
 
-# Print to file with comments and new name!
 
+
+# Print to file with comments and new name! -----------------------------
 Description <- c("Hello! Welcome to the world of MSDIAL QE Quality Control! ",
                  "Minimum area for a real peak: ",
                  "RT flexibility: ",
                  "Blank can be this fraction of a sample: ",
                  "S/N ratio: " ,
                  "Processed on: ")
-Value <- c(NA, area.min, RT.flex, blk.thresh, SN.min, Sys.Date())
+Value <- c(NA, area.min, RT.flex, blk.thresh, SN.min, Sys.time())
 
 df <- data.frame(Description, Value)
 final.table <- bind_rows(df, final.table)

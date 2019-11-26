@@ -29,7 +29,7 @@ headers.set <- lapply(names(runlist), function(x) SetHeader(runlist[[x]]))
 names(headers.set) <- runs
 
 for (df in seq_along(headers.set)) { 
-  headers.set[[df]] <- headers.set[[df]] %>% filter(!Metabolite.name == "Unknown")
+  headers.set[[df]] <- headers.set[[df]] %>% filter(!str_detect(Metabolite.name, "w/o MS2|Unknown"))
   headers.set[[df]] <- headers.set[[df]] %>% select(-one_of(columns.to.drop))
 }
 
@@ -41,8 +41,6 @@ list2env(classes.changed, globalenv())
 
 
 # Rearrange datasets ------------------------------------------------------
-
-# Positive
 SN <- SN_KM1906_FA_DepthProfiles %>%
   tidyr::gather(
     key = "Replicate.Name",
