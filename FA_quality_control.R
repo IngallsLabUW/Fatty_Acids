@@ -1,8 +1,24 @@
 # Quality control script
+source("FA_Functions.R")
 
 # Use those FAs that have _Std in the metabolite.name. compare to RT expected, not value. know that 1.7 difference between expected and value is pretty significant in the RP ? space. 
 # Check out weird blank flags. drop blk_blk_20, not representative. 
 # do different QCs for size fractionation. 
+
+pattern = "combined"
+
+# Import QC'd files and clean parameter data.
+filename <- RemoveCsv(list.files(path = 'data_processed/', pattern = pattern))
+filepath <- file.path('data_processed', paste(filename, ".csv", sep = ""))
+
+combined <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = FALSE, header = TRUE)) %>%
+  select(Replicate.Name:Alignment.ID, Metabolite.name) %>%
+  mutate(Run.Type = (tolower(str_extract(Replicate.Name, "(?<=_)[^_]+(?=_)")))) 
+
+
+%>%
+  left_join(FA.expected %>% select(Metabolite.name, RT.Expected)) 
+
 
 FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
   rename(Metabolite.name = Name) %>%
@@ -20,11 +36,6 @@ SN.min     <- 4
 
 # Identify run types, add expected Retention Time Value ------------------------------------------------------
 msdial.runtypes <- IdentifyRunTypes(combined)
-combined <- combined %>%
-  select(Replicate.Name:Alignment.ID, Metabolite.name) %>%
-  mutate(Run.Type = (tolower(str_extract(combined$Replicate.Name, "(?<=_)[^_]+(?=_)")))) %>%
-  left_join(FA.expected %>% select(Metabolite.name, RT.Expected)) 
-  
 
 # Retention Time Table ----------------------------------------------------
 RT.table <- combined %>%
