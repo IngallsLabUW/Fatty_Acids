@@ -2,30 +2,8 @@
 source("FA_Functions.R")
 
 # Use those FAs that have _Std in the metabolite.name. compare to RT expected, not value. know that 1.7 difference between expected and value is pretty significant in the RP ? space. 
-# Check out weird blank flags. drop blk_blk_20, not representative. 
+# Check out weird blank flags. 
 # do different QCs for size fractionation. 
-
-pattern = "combined"
-
-# Import QC'd files and clean parameter data.
-filename <- RemoveCsv(list.files(path = 'data_processed/', pattern = pattern))
-filepath <- file.path('data_processed', paste(filename, ".csv", sep = ""))
-
-combined <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = FALSE, header = TRUE)) %>%
-  select(Replicate.Name:Alignment.ID, Metabolite.name) %>%
-  mutate(Run.Type = (tolower(str_extract(Replicate.Name, "(?<=_)[^_]+(?=_)")))) 
-
-
-%>%
-  left_join(FA.expected %>% select(Metabolite.name, RT.Expected)) 
-
-
-FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
-  rename(Metabolite.name = Name) %>%
-  rename(RT.Expected = RT) %>%
-  rename(MZ.Value = m.z) %>%
-  rename(Adduct.Type = Charge)
-  
 
 # Parameter assignment ----------------------------------------------------
 area.min   <- 1000
@@ -33,9 +11,31 @@ RT.flex    <- 0.4 # This will need to go into standards for predictive RTs.
 blk.thresh <- 0.3
 SN.min     <- 4
 
+pattern = "combined"
 
-# Identify run types, add expected Retention Time Value ------------------------------------------------------
-msdial.runtypes <- IdentifyRunTypes(combined)
+# Import QC'd files ----------------------------------------------------
+filename <- RemoveCsv(list.files(path = "data_processed/", pattern = pattern))
+filepath <- file.path("data_processed", paste(filename, ".csv", sep = ""))
+
+combined <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = FALSE, header = TRUE)) %>%
+  mutate(Run.Type = (tolower(str_extract(Replicate.Name, "(?<=_)[^_]+(?=_)")))) 
+
+# Create file isolating runs that have comments.
+file.comments <- combined %>%
+  select(Replicate.Name, Comment) %>%
+  filter(!nchar(Comment) < 5)
+
+# Import expected retention time files ----------------------------------------------------
+FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
+  rename(Metabolite.name = Name) %>%
+  rename(RT.Expected = RT) %>%
+  rename(MZ.Value = m.z) %>%
+  rename(Adduct.Type = Charge)
+  
+combined.expected <- combined %>%
+  left_join(FA.expected %>% select(Metabolite.name, RT.Expected)) %>%
+  select(Replicate.Name, Metabolite.name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type)
+
 
 # Retention Time Table ----------------------------------------------------
 RT.table <- combined %>%
@@ -59,6 +59,14 @@ blank.table <- combined %>%
   select(Metabolite.name:Blk.max) %>%
   select(-Blk.Area) %>%
   unique()
+
+
+###
+# Separate replicates by size fractionation ---------------------------------------------------
+size.fraction_0.2 <- combined.expected %>%
+  filter()
+###
+
 
 # Create datasets for different flag types ------------------------------
 SN.Area.Flags <- combined %>%

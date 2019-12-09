@@ -50,7 +50,7 @@ RemoveCsv <- function(full.filepaths) {
 }
 
 ChangeClasses <- function(df) {
-  for (i in c(10:ncol(df))) {
+  for (i in c(12:ncol(df))) {
     df[, i] <- as.numeric(as.character(df[, i]))
   }
   return(df)
@@ -93,6 +93,30 @@ IdentifyDuplicates <- function(df) {
   
   return(duplicates)
 }
+
+RearrangeDatasets <- function(df, parameter) {
+  df <- df %>%
+    tidyr::gather(
+      key = "Replicate.Name",
+      value = "parameter",
+      starts_with("X")) %>%
+    select(Replicate.Name, parameter, everything())
+  
+  names(df)[2] <- parameter
+  
+  return(df)
+}
+
+
+StandardizeMetabolites <- function(df) {
+  df.standardized <- df %>%
+    mutate(Metabolite.name = ifelse(str_detect(Metabolite.name, "Ingalls_"), sapply(strsplit(Metabolite.name, "_"), `[`, 2), Metabolite.name)) 
+  
+  df.standardized$Replicate.Name <- gsub("^.{0,1}", "", df.standardized$Replicate.Name)
+  
+  return(df.standardized)
+}
+
 
 
 # Do we need this function?

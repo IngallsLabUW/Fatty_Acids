@@ -5,13 +5,13 @@ source("FA_Functions.R")
 matching.variable <- "FA"
 
 # Ensure correct columns are dropped from imports.
-columns.to.drop <- c('Average.Rt.min.', 'Formula', 'Ontology', 'INCHIKEY', 
+columns.to.drop <- c('Formula', 'Ontology', 'INCHIKEY', 
                      'SMILES', 'Isotope.tracking.parent.ID', 'Isotope.tracking.weight.number',
                      'MS1.isotopic.spectrum', 'MS.MS.spectrum', 'Average.Mz', 'Post.curation.result', 
                      'Fill..', 'Annotation.tag..VS1.0.', 'RT.matched',
                      'm.z.matched', 'MS.MS.matched', 'Manually.modified', 'Total.score', 
-                     'RT.similarity', 'Dot.product', 'Reverse.dot.product', 'Fragment.presence..')
-
+                     'Dot.product', 'Reverse.dot.product', 'Fragment.presence..')
+# 'Average.Rt.min.', 'RT.similarity'
 
 # Import all MSDial files --------------------------------------------------
 filenames <- RemoveCsv(list.files(path = 'data_raw', pattern = '*.csv'))
@@ -41,47 +41,26 @@ list2env(classes.changed, globalenv())
 
 
 # Rearrange datasets ------------------------------------------------------
-SN <- SN_KM1906_FA_DepthProfiles %>%
-  tidyr::gather(
-    key = "Replicate.Name",
-    value = "SN.Value",
-    starts_with("X")) %>%
-  select(Replicate.Name, SN.Value, everything())
-
-RT <- RT_KM1906_FA_DepthProfiles %>%
-  tidyr::gather(
-    key = "Replicate.Name",
-    value = "RT.Value",
-    starts_with("X")) %>%
-  select(Replicate.Name, RT.Value, everything())
-
-Area <- Area_KM1906_FA_DepthProfiles %>%
-  tidyr::gather(
-    key = "Replicate.Name",
-    value = "Area.Value",
-    starts_with("X")) %>%
-  select(Replicate.Name, Area.Value, everything())
-
-MZ <- Mz_KM1906_FA_DepthProfiles %>%
-  tidyr::gather(
-    key = "Replicate.Name",
-    value = "MZ.Value",
-    starts_with("X")) %>%
-  select(Replicate.Name, MZ.Value, everything())
+Area <- RearrangeDatasets(Area_KM1906_FA_DepthProfiles, parameter = "Area.Value")
+Mz   <- RearrangeDatasets(Mz_KM1906_FA_DepthProfiles, parameter = "Mz.Value")
+RT   <- RearrangeDatasets(RT_KM1906_FA_DepthProfiles, parameter = "RT.Value")
+SN   <- RearrangeDatasets(SN_KM1906_FA_DepthProfiles, parameter = "SN.Value")
 
 
 # Combine to one dataset --------------------------------------------------
 combined <- Area %>%
-  left_join(MZ) %>%
+  left_join(Mz) %>%
   left_join(SN) %>%
   left_join(RT) %>%
-  select(Replicate.Name, Area.Value, MZ.Value, RT.Value, SN.Value, everything())
+  select(Replicate.Name, Area.Value, Mz.Value, RT.Value, SN.Value, everything())
 
-combined$Replicate.Name <- gsub("^.{0,1}", "", combined$Replicate.Name)
+# Standardize dataset --------------------------------------------------
+combined.final <- StandardizeMetabolites(combined) %>%
+  filter(!str_detect(Replicate.Name, "Blk_Blk_20"))
 
 currentDate <- Sys.Date()
 csvFileName <- paste("data_processed/MSDial_FA_combined_", currentDate, ".csv", sep = "")
 
-write.csv(combined, csvFileName, row.names = FALSE)
+write.csv(combined.final, csvFileName, row.names = FALSE)
 
 rm(list = ls())
