@@ -36,10 +36,37 @@ combined.expected <- combined %>%
   left_join(FA.expected %>% select(Metabolite.name, RT.Expected)) %>%
   select(Replicate.Name, Metabolite.name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type)
 
+# Separate replicates by size fractionation ---------------------------------------------------
+# size.fraction_0.2 <- combined.expected %>%
+#   filter()
 
+matched.FAs <- combined.expected %>%
+  filter(str_detect(Metabolite.name, "Std|IS")) %>%
+  select(Metabolite.name) %>%
+  unique() %>%
+  filter(str_detect(Metabolite.name, "16:0|20:4|20:5|22:6"))
+
+
+################################################################################
+# TESTING only for FA 10:0, size fraction 0.2
+# All NA values were 0.000 and have been changed.
 # Retention Time Table ----------------------------------------------------
-RT.table <- combined %>%
-  filter(Run.Type == "std") %>%
+RT.table <- combined.expected %>%
+  select(Replicate.Name, Metabolite.name, RT.Value, RT.Expected) %>%
+  filter(Metabolite.name %in% matched.FAs$Metabolite.name) %>%
+  filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
+  filter(!str_detect(Replicate.Name, "0.3")) %>% # currently only looking at 0.3
+  mutate(RT.Difference = abs(RT.Value - RT.Expected)) %>%
+  mutate(Replicate.Name = gsub("(.*)_.*", "\\1", Replicate.Name)) %>%
+  mutate(RT.Value = na_if(RT.Value, 0)) %>%
+  group_by(Metabolite.name, Replicate.Name) %>%
+  mutate(RT.Ave.Diff = mean(RT.Difference))
+  
+  #filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
+
+  
+
+
   arrange(Metabolite.name) %>%
   group_by(Metabolite.name) %>%
   mutate(RT.min = min(RT.Value, na.rm = TRUE)) %>%
@@ -47,7 +74,7 @@ RT.table <- combined %>%
   select(Metabolite.name, RT.Value, RT.Expected, RT.min, RT.max, Run.Type) %>%
   unique()
 
-
+  ################################################################################
 # Blank Table ------------------------------------------------------------
 blank.table <- combined %>%
   filter(Run.Type == "blk") %>%
@@ -61,11 +88,9 @@ blank.table <- combined %>%
   unique()
 
 
-###
-# Separate replicates by size fractionation ---------------------------------------------------
-size.fraction_0.2 <- combined.expected %>%
-  filter()
-###
+
+
+
 
 
 # Create datasets for different flag types ------------------------------
