@@ -19,7 +19,7 @@ file.comments <- combined %>%
   select(Replicate.Name, Comment) %>%
   filter(!nchar(Comment) < 5)
 
-# Import expected retention time files ----------------------------------------------------
+# Import expected retention time files
 FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
   rename(Metabolite.Name = Name) %>%
   rename(RT.Expected = RT) %>%
@@ -30,10 +30,12 @@ combined.expected <- combined %>%
   left_join(FA.expected %>% select(Metabolite.Name, RT.Expected)) %>%
   select(Replicate.Name, Metabolite.Name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type)
 
+
 # Separate replicates by size fractionation ---------------------------------------------------
 size.fraction_0.2 <- combined.expected %>%
   filter(!str_detect(Replicate.Name, "0.3")) %>%
-  mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", "NonStandard.Compound"))
+  mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", 
+                                ifelse(str_detect(Metabolite.Name, "IS"), "Internal.Standard","NonStandard.Compound")))
 
 # First plot of retention time ----------------------------------------------------
 first.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = RT.Value, fill = Cmpd.with.Std)) +
@@ -43,7 +45,7 @@ first.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = RT.Value, f
         legend.position = "top",
         strip.text = element_text(size = 10)) +
 ggtitle("Fatty Acids: 0.2 Size Fraction")
-#print(first.plot)
+print(first.plot)
 
 
 ################################################################################
@@ -55,7 +57,8 @@ RT.Table <- size.fraction_0.2 %>%
   mutate(Mean.RT.Value = mean(RT.Value, na.rm = TRUE),
          Min.RT.Value = min(RT.Value, na.rm = TRUE),
          Max.RT.Value = max(RT.Value, na.rm = TRUE)) %>%
-  mutate(RT.Diff = abs(RT.Value - RT.Expected)) %>%
+  mutate(RT.Diff = RT.Value - RT.Expected) %>% 
+  mutate(RT.Diff.abs = abs(RT.Value - RT.Expected)) %>%
   mutate(Min.RT.Diff = min(RT.Diff),
          Max.RT.Diff = max(RT.Diff)) %>%
   mutate(Midrange.RT.Diff = (min(RT.Diff) + max(RT.Diff)) / 2) %>%
@@ -67,18 +70,18 @@ RT.Table <- size.fraction_0.2 %>%
 RT.Table.Plot <- RT.Table %>%
   group_by(Metabolite.Name) %>%
   # TESTING AREA #
-  select(Metabolite.Name, Replicate.Name, RT.Diff, Midrange.RT.Diff, High.Low) %>%
+  select(Metabolite.Name, Replicate.Name, RT.Diff.abs, Midrange.RT.Diff, High.Low) %>%
   unique() 
 
-RT.times <- ggplot(RT.Table.Plot, aes(x = Replicate.Name, y = RT.Diff, fill = High.Low)) +
+RT.Plot <- ggplot(RT.Table.Plot, aes(x = Replicate.Name, y = RT.Diff.abs, fill = High.Low)) +
   geom_bar(stat = "identity") +
-  facet_wrap( ~Metabolite.Name, scales = "free_y") +
+  facet_wrap( ~Metabolite.Name, scales = "fixed") +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 5),
         legend.position = "top",
         strip.text = element_text(size = 10))
   ggtitle("Retention Time Differences")
-#print(RT.times)
+print(RT.Plot)
 
 
 Tolerance.Table.High <- RT.Table %>%
@@ -87,31 +90,44 @@ Tolerance.Table.High <- RT.Table %>%
   ## TESTING
   select(Metabolite.Name, RT.Expected, RT.Value) %>%
   filter(Metabolite.Name == "FA 16:0_Std") %>%
-  mutate(High.diff = abs(RT.Value - RT.Expected))
+  group_by(Metabolite.Name) %>%
+  mutate(Ave.High = mean(RT.Value)) %>%
+  mutate(Ave.High.Diff = abs(RT.Expected - Ave.High)) %>%
+  select(-RT.Value) %>%
+  unique()
   
-
 Tolerance.Table.Low <- RT.Table %>%
   filter(High.Low == "Low") %>%
   unique() %>%
   ## TESTING
-  filter(Metabolite.Name == "FA 16:0_Std") 
+  select(Metabolite.Name, RT.Expected, RT.Value) %>%
+  filter(Metabolite.Name == "FA 16:0_Std") %>%
+  group_by(Metabolite.Name) %>%
+  mutate(Ave.Low= mean(RT.Value)) %>%
+  mutate(Ave.Low.Diff = abs(RT.Expected - Ave.Low)) %>%
+  select(-RT.Value) %>%
+  unique()
+
+
 
 # Tolerance production ----------------------------------------------------
-Full.RT.Table <- size.fraction_0.2 %>%
+Full.Tolerance.Table <- size.fraction_0.2 %>%
   select(Metabolite.Name, Replicate.Name, RT.Expected, RT.Value) %>%
   filter(Metabolite.Name == "FA 16:0_Std") %>% 
   filter(str_detect(Replicate.Name, "Smp|Blk")) %>%
   # TESTING AREA #
-  left_join(Tolerance.Table) %>%
-  mutate(Sample.Diff = abs(RT.Value - RT.Expected)) 
-  # filter(!Sample.Diff > Maximum.Tolerance) %>%
-  # filter(!Sample.Diff > Max.RT.Diff)
+  left_join(Tolerance.Table.High) %>%
+  left_join(Tolerance.Table.Low) %>%
+  select(Metabolite.Name, RT.Expected, Ave.High:Ave.Low.Diff) %>%
+  unique()
+
+FA16_HighTolerance = unique(Full.Tolerance.Table$Ave.High.Diff)
+FA16_LowTolerance = unique(Full.Tolerance.Table$Ave.Low.Diff)
 
 
 
 
 ################################################################################
-  left_join(RT.Table %>% filter(Metabolite.Name == "FA 16:0_Std"))
 
   filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
   filter(!str_detect(Replicate.Name, "IS")) %>%
