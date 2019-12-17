@@ -1,89 +1,31 @@
-# Quality control script
-source("FA_Functions.R")
-
-# Use those FAs that have _Std in the metabolite.name. compare to RT expected, not value. know that 1.7 difference between expected and value is pretty significant in the RP ? space. 
-# Check out weird blank flags. 
-# do different QCs for size fractionation. 
-
 # Parameter assignment ----------------------------------------------------
 area.min   <- 1000
 RT.flex    <- 0.4 # This will need to go into standards for predictive RTs. 
 blk.thresh <- 0.3
 SN.min     <- 4
 
-pattern = "combined"
-
-# Import QC'd files ----------------------------------------------------
-filename <- RemoveCsv(list.files(path = "data_processed/", pattern = pattern))
-filepath <- file.path("data_processed", paste(filename, ".csv", sep = ""))
-
-combined <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = FALSE, header = TRUE)) %>%
-  mutate(Run.Type = (tolower(str_extract(Replicate.Name, "(?<=_)[^_]+(?=_)")))) 
-
-# Create file isolating runs that have comments.
-file.comments <- combined %>%
-  select(Replicate.Name, Comment) %>%
-  filter(!nchar(Comment) < 5)
-
-# Import expected retention time files ----------------------------------------------------
-FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
-  rename(Metabolite.name = Name) %>%
-  rename(RT.Expected = RT) %>%
-  rename(MZ.Value = m.z) %>%
-  rename(Adduct.Type = Charge)
-  
-combined.expected <- combined %>%
-  left_join(FA.expected %>% select(Metabolite.name, RT.Expected)) %>%
-  select(Replicate.Name, Metabolite.name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type)
-
-# Separate replicates by size fractionation ---------------------------------------------------
-# size.fraction_0.2 <- combined.expected %>%
-#   filter()
-
-matched.FAs <- combined.expected %>%
-  filter(str_detect(Metabolite.name, "Std|IS")) %>%
-  select(Metabolite.name) %>%
-  unique() %>%
-  filter(str_detect(Metabolite.name, "16:0|20:4|20:5|22:6"))
-
 
 ################################################################################
-# TESTING only for FA 10:0, size fraction 0.2
-# All NA values were 0.000 and have been changed.
+
 # Retention Time Table ----------------------------------------------------
-RT.table <- combined.expected %>%
-  select(Replicate.Name, Metabolite.name, RT.Value, RT.Expected) %>%
-  filter(Metabolite.name %in% matched.FAs$Metabolite.name) %>%
-  filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
-  filter(!str_detect(Replicate.Name, "0.3")) %>% # currently only looking at 0.3
-  mutate(RT.Difference = abs(RT.Value - RT.Expected)) %>%
-  mutate(Replicate.Name = gsub("(.*)_.*", "\\1", Replicate.Name)) %>%
-  mutate(RT.Value = na_if(RT.Value, 0)) %>%
-  group_by(Metabolite.name, Replicate.Name) %>%
-  mutate(RT.Ave.Diff = mean(RT.Difference))
-  
-  #filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
-
-  
-
-
-  arrange(Metabolite.name) %>%
-  group_by(Metabolite.name) %>%
+RT.table <- combined %>%
+  filter(Run.Type == "std") %>%
+  arrange(Metabolite.Name) %>%
+  group_by(Metabolite.Name) %>%
   mutate(RT.min = min(RT.Value, na.rm = TRUE)) %>%
   mutate(RT.max = max(RT.Value, na.rm = TRUE)) %>%
-  select(Metabolite.name, RT.Value, RT.Expected, RT.min, RT.max, Run.Type) %>%
+  select(Metabolite.Name, RT.Value, RT.Expected, RT.min, RT.max, Run.Type) %>%
   unique()
 
-  ################################################################################
 # Blank Table ------------------------------------------------------------
 blank.table <- combined %>%
   filter(Run.Type == "blk") %>%
   mutate(Blk.Area = Area.Value) %>%
-  arrange(Metabolite.name) %>%
-  group_by(Metabolite.name) %>%
+  arrange(Metabolite.Name) %>%
+  group_by(Metabolite.Name) %>%
   mutate(Blk.min = min(Area.Value)) %>%
   mutate(Blk.max = max(Area.Value)) %>%
-  select(Metabolite.name:Blk.max) %>%
+  select(Metabolite.Name:Blk.max) %>%
   select(-Blk.Area) %>%
   unique()
 
@@ -95,21 +37,21 @@ blank.table <- combined %>%
 
 # Create datasets for different flag types ------------------------------
 SN.Area.Flags <- combined %>%
-  arrange(Metabolite.name) %>%
+  arrange(Metabolite.Name) %>%
   mutate(SN.Flag       = ifelse(((SN.Value) < SN.min), "SN.Flag", NA)) %>%
   mutate(Area.Min.Flag = ifelse((Area.Value < area.min), "Area.Min.Flag", NA))
 
 # Joining datasets---------------------------------------
 add.RT.Flag <- SN.Area.Flags %>%
-  group_by(Metabolite.name) %>%
-  left_join(RT.table, by = c("Metabolite.name", "RT.Value", "RT.Expected", "Run.Type")) %>%
+  group_by(Metabolite.Name) %>%
+  left_join(RT.table, by = c("Metabolite.Name", "RT.Value", "RT.Expected", "Run.Type")) %>%
   mutate(RT.Flag = ifelse((RT.Value >= (RT.max + RT.flex) | RT.Value <= (RT.min - RT.flex)), "RT.Flag", NA)) %>%
   select(-c("RT.max", "RT.min"))
 
 add.blk.Flag <- add.RT.Flag %>%
-  left_join(blank.table, by = c("Metabolite.name", "Run.Type", "RT.Expected")) %>%
+  left_join(blank.table, by = c("Metabolite.Name", "Run.Type", "RT.Expected")) %>%
   mutate(Blank.Flag = ifelse((Area.Value / Blk.max) < blk.thresh, "Blank.Flag", NA)) %>%
-  select(Replicate.Name, Metabolite.name, Area.Value:RT.Value, RT.Expected, SN.Value, Run.Type, SN.Flag:Blank.Flag) %>%
+  select(Replicate.Name, Metabolite.Name, Area.Value:RT.Value, RT.Expected, SN.Value, Run.Type, SN.Flag:Blank.Flag) %>%
   select(-c("Blk.min", "Blk.max"))
 
 
@@ -120,11 +62,11 @@ final.table <- add.blk.Flag %>%
   mutate(all.Flags      = ifelse(all.Flags == "", NA, all.Flags)) %>%
   mutate(Area.with.QC   = ifelse(is.na(Area.Min.Flag), Area.Value, NA)) %>%
   select(Replicate.Name:Area.Value, Area.with.QC, MZ.Value, SN.Value, RT.Value, RT.Expected, everything()) %>%
-  ungroup(Metabolite.name) %>%
-  mutate(Metabolite.name = as.character(Metabolite.name)) 
+  ungroup(Metabolite.Name) %>%
+  mutate(Metabolite.Name = as.character(Metabolite.Name)) 
 
 RT.comparisons <- final.table %>%
-  select(Replicate.Name, Metabolite.name, RT.Value, RT.Expected) %>%
+  select(Replicate.Name, Metabolite.Name, RT.Value, RT.Expected) %>%
   mutate(RT.Difference = (abs(RT.Value - RT.Expected)))
 
 # Print to file with comments and new name! -----------------------------

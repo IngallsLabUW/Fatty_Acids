@@ -1,4 +1,4 @@
-"Replicate.Name","Area.Value","Mz.Value","RT.Value","SN.Value","Alignment.ID","Average.Rt.min.","Metabolite.name","Adduct.type","MS.MS.assigned","Reference.RT","Reference.m.z","Comment","RT.similarity","S.N.average","Spectrum.reference.file.name"
+"Replicate.Name","Area.Value","Mz.Value","RT.Value","SN.Value","Alignment.ID","Average.Rt.min.","Metabolite.Name","Adduct.type","MS.MS.assigned","Reference.RT","Reference.m.z","Comment","RT.similarity","S.N.average","Spectrum.reference.file.name"
 "190912_Blk_HBlk1_A.0.2",5270872,171.138,2.837,45.78262,"514","2.946","FA 10:0","[M-H]-","FALSE","3.1","171.1385","G; real peak is at 3 min","98.6","22.18","190912_Smp_HS5C3D400_C-0-3"
 "190912_Blk_HBlk1_A.0.2",611800,185.154,3.377,15.05064,"782","3.772","FA 11:0","[M-H]-","FALSE","3.9","185.15421","ok","100","15.68","190912_Std_FA-StdsInSolvent_2"
 "190912_Blk_HBlk1_A.0.2",611413,199.17,4.863,4.497157,"1064","4.698","FA 12:0","[M-H]-","FALSE","4.7","199.1698","G;","100","265.99","190912_Smp_HS2C1D5_0-3"

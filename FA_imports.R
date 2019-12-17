@@ -29,7 +29,8 @@ headers.set <- lapply(names(runlist), function(x) SetHeader(runlist[[x]]))
 names(headers.set) <- runs
 
 for (df in seq_along(headers.set)) { 
-  headers.set[[df]] <- headers.set[[df]] %>% filter(!str_detect(Metabolite.name, "w/o MS2|Unknown"))
+  headers.set[[df]] <- headers.set[[df]] %>% rename(Metabolite.Name = Metabolite.name) 
+  headers.set[[df]] <- headers.set[[df]] %>% filter(!str_detect(Metabolite.Name, "w/o MS2|Unknown"))
   headers.set[[df]] <- headers.set[[df]] %>% select(-one_of(columns.to.drop))
 }
 

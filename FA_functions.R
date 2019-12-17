@@ -110,7 +110,7 @@ RearrangeDatasets <- function(df, parameter) {
 
 StandardizeMetabolites <- function(df) {
   df.standardized <- df %>%
-    mutate(Metabolite.name = ifelse(str_detect(Metabolite.name, "Ingalls_"), sapply(strsplit(Metabolite.name, "_"), `[`, 2), Metabolite.name)) 
+    mutate(Metabolite.Name = ifelse(str_detect(Metabolite.Name, "Ingalls_"), sapply(strsplit(Metabolite.Name, "_"), `[`, 2), Metabolite.Name)) 
   
   df.standardized$Replicate.Name <- gsub("^.{0,1}", "", df.standardized$Replicate.Name)
   
@@ -144,7 +144,7 @@ CheckBlankMatcher <- function(blank.matcher) {
 # Unused functions --------------------------------------------------------
 # FilterUnknowns <- function(df) {
 #   df <- df %>%  
-#     filter(Metabolite.name != 'Unknown') %>%
+#     filter(Metabolite.Name != 'Unknown') %>%
 #     select(-c(Average.Rt.min., Formula, Ontology, INCHIKEY, SMILES, Isotope.tracking.parent.ID, Isotope.tracking.weight.number, 
 #               MS1.isotopic.spectrum, MS.MS.spectrum, Average.Mz, Post.curation.result, Fill.., Annotation.tag..VS1.0., RT.matched, 
 #               m.z.matched, MS.MS.matched, Manually.modified, Total.score:Fragment.presence..))
