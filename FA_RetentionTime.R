@@ -1,7 +1,7 @@
 # Quality control script
 source("FA_Functions.R")
 
-# Use those FAs that have _Std in the Metabolite.Name. compare to RT expected, not value. know that 1.7 difference between expected and value is pretty significant in the RP ? space. 
+# Use those FAs that have _Std in the Metabolite.Name. Compare to RT expected, not value.  
 # Check out weird blank flags. 
 # do different RT predictions/QCs for size fractionation. 
 
@@ -16,7 +16,7 @@ combined <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = F
 
 # Create file isolating runs that have comments.
 file.comments <- combined %>%
-  select(Replicate.Name, Comment) %>%
+  select(Replicate.Name, Metabolite.Name, Comment) %>%
   filter(!nchar(Comment) < 5)
 
 # Import expected retention time files
@@ -35,17 +35,17 @@ combined.expected <- combined %>%
 size.fraction_0.2 <- combined.expected %>%
   filter(!str_detect(Replicate.Name, "0.3")) %>%
   mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", 
-                                ifelse(str_detect(Metabolite.Name, "IS"), "Internal.Standard","NonStandard.Compound")))
+                                ifelse(str_detect(Metabolite.Name, "IS"), "Internal.Standard", "NonStandard.Compound")))
 
 # First plot of retention time ----------------------------------------------------
-first.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = RT.Value, fill = Cmpd.with.Std)) +
+all.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = RT.Value, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
         strip.text = element_text(size = 10)) +
 ggtitle("Fatty Acids: 0.2 Size Fraction")
-print(first.plot)
+print(all.RT.plot )
 
 
 ################################################################################
@@ -59,49 +59,73 @@ RT.Table <- size.fraction_0.2 %>%
          Max.RT.Value = max(RT.Value, na.rm = TRUE)) %>%
   mutate(RT.Diff = RT.Value - RT.Expected) %>% 
   mutate(RT.Diff.abs = abs(RT.Value - RT.Expected)) %>%
-  mutate(Min.RT.Diff = min(RT.Diff),
-         Max.RT.Diff = max(RT.Diff)) %>%
-  mutate(Midrange.RT.Diff = (min(RT.Diff) + max(RT.Diff)) / 2) %>%
-  mutate(High.Low = ifelse(RT.Diff > Midrange.RT.Diff, "High", "Low")) %>%
-  select(Replicate.Name, Metabolite.Name, RT.Expected, RT.Value, Mean.RT.Value:High.Low)
-  
+  select(Replicate.Name, Metabolite.Name, RT.Expected, RT.Value, Mean.RT.Value:RT.Diff.abs)
+  # mutate(Midrange.RT.Diff = (min(RT.Diff) + max(RT.Diff)) / 2) %>%
+  # mutate(High.Low = ifelse(RT.Diff > Midrange.RT.Diff, "High", "Low")) %>%
+  # select(Replicate.Name, Metabolite.Name, RT.Expected, RT.Value, Mean.RT.Value:High.Low)
+
+
+## K means clustering test 
+ggplot(RT.Table, aes(RT.Value, Replicate.Name, color = Metabolite.Name)) + 
+  geom_point() +
+  ggtitle("Standard Retention Time Differences")
+ggplot(RT.Table, aes(RT.Diff, Replicate.Name, color = Metabolite.Name)) + 
+  geom_point() +
+  ggtitle("Expected vs Real Retention Time Differences")
+
+cluster.test <- RT.Table %>%
+  arrange(Metabolite.Name)
+
+set.seed(20)
+RTCluster <- kmeans(cluster.test[, 8], 2, nstart = 20)
+RTCluster
+
+RTCluster$cluster <- as.factor(RTCluster$cluster)
+ggplot(cluster.test, aes(RT.Diff, Replicate.Name, color = RTCluster$cluster)) + 
+  geom_point() +
+  ggtitle("K-means clustering: RT Value Differences")
+
+cluster.test$cluster <- RTCluster$cluster
 
 # RT differences plot
-RT.Table.Plot <- RT.Table %>%
+RT.Table.clustered <- cluster.test %>%
   group_by(Metabolite.Name) %>%
+  mutate(High.Low = as.character(ifelse(cluster == 1, "Low", "High"))) %>%
+  select(-cluster) %>%
   # TESTING AREA #
-  select(Metabolite.Name, Replicate.Name, RT.Diff.abs, Midrange.RT.Diff, High.Low) %>%
   unique() 
 
-RT.Plot <- ggplot(RT.Table.Plot, aes(x = Replicate.Name, y = RT.Diff.abs, fill = High.Low)) +
+RT.Plot <- ggplot(RT.Table.clustered, aes(x = Replicate.Name, y = RT.Diff, fill = High.Low)) +
   geom_bar(stat = "identity") +
   facet_wrap( ~Metabolite.Name, scales = "fixed") +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 5),
         legend.position = "top",
-        strip.text = element_text(size = 10))
+        strip.text = element_text(size = 10)) +
   ggtitle("Retention Time Differences")
 print(RT.Plot)
 
+################################################################################
+## Constructing Tolerances
 
-Tolerance.Table.High <- RT.Table %>%
+Tolerance.Table.High <- RT.Table.clustered %>%
   filter(High.Low == "High") %>%
   unique() %>%
   ## TESTING
   select(Metabolite.Name, RT.Expected, RT.Value) %>%
-  filter(Metabolite.Name == "FA 16:0_Std") %>%
+  #filter(Metabolite.Name == "FA 16:0_Std") %>%
   group_by(Metabolite.Name) %>%
   mutate(Ave.High = mean(RT.Value)) %>%
   mutate(Ave.High.Diff = abs(RT.Expected - Ave.High)) %>%
   select(-RT.Value) %>%
   unique()
   
-Tolerance.Table.Low <- RT.Table %>%
+Tolerance.Table.Low <- RT.Table.clustered %>%
   filter(High.Low == "Low") %>%
   unique() %>%
   ## TESTING
   select(Metabolite.Name, RT.Expected, RT.Value) %>%
-  filter(Metabolite.Name == "FA 16:0_Std") %>%
+  #filter(Metabolite.Name == "FA 16:0_Std") %>%
   group_by(Metabolite.Name) %>%
   mutate(Ave.Low= mean(RT.Value)) %>%
   mutate(Ave.Low.Diff = abs(RT.Expected - Ave.Low)) %>%
@@ -111,10 +135,11 @@ Tolerance.Table.Low <- RT.Table %>%
 
 
 # Tolerance production ----------------------------------------------------
+## in progress
 Full.Tolerance.Table <- size.fraction_0.2 %>%
   select(Metabolite.Name, Replicate.Name, RT.Expected, RT.Value) %>%
-  filter(Metabolite.Name == "FA 16:0_Std") %>% 
-  filter(str_detect(Replicate.Name, "Smp|Blk")) %>%
+  #filter(Metabolite.Name == "FA 16:0_Std") %>% 
+  filter(str_detect(Metabolite.Name, "_Std")) %>%
   # TESTING AREA #
   left_join(Tolerance.Table.High) %>%
   left_join(Tolerance.Table.Low) %>%
