@@ -2,8 +2,6 @@
 source("FA_Functions.R")
 
 # Use those FAs that have _Std in the Metabolite.Name. Compare to RT expected, not value.  
-# Check out weird blank flags. 
-# do different RT predictions/QCs for size fractionation. This has been done.
 
 pattern = "combined"
 
@@ -86,6 +84,7 @@ std.RT.plot <- ggplot(RT.Table, aes(x = Metabolite.Name, y = RT.Value)) +
   ggtitle("Fatty Acids: Standard Compounds")
 print(std.RT.plot)
 
+################################################################################
 ## K means clustering test 
 ggplot(RT.Table, aes(RT.Value, Replicate.Name, color = Metabolite.Name)) + 
   geom_point() +
@@ -155,8 +154,6 @@ Tolerance.Table.Low <- RT.Table.clustered %>%
   select(-RT.Value) %>%
   unique()
 
-
-
 # Tolerance production ----------------------------------------------------
 ## in progress
 Full.Tolerance.Table <- size.fraction_0.2 %>%
@@ -174,47 +171,20 @@ FA16_LowTolerance = unique(Full.Tolerance.Table$Ave.Low.Diff)
 
 
 
-
 ################################################################################
+## FA 18 Test 
 
-  filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
-  filter(!str_detect(Replicate.Name, "IS")) %>%
-  mutate(Replicate.Name = gsub("(.*)_.*", "\\1", Replicate.Name)) %>%
-  group_by(Metabolite.Name, Replicate.Name) %>%
-  mutate(RT.Value.ave = mean(RT.Value)) %>%
-  select(-RT.Value) %>%
-  unique() %>%
-  mutate(RT.Value = na_if(RT.Value, 0))
+FA.18 <- RT.Table %>%
+  filter(str_detect(Metabolite.Name, "18"))
 
-
-RT.table2 <- RT.table %>%
-  mutate(Std.Type = ifelse(str_detect(Metabolite.Name, "IS"), "Internal_std", "Standard")) %>%
-  mutate(Names = gsub("(.*)_.*", "\\1", Metabolite.Name)) %>%
-  group_by(Names) %>%
-  group_split()
-
-
-RT.midframe <- lapply(RT.table2, function(x) group_by(x, Replicate.Name))
-
-testing <- RT.table2[[1]]
-testing <- testing %>% 
-  select(Replicate.Name, Metabolite.Name, RT.Difference, Std.Type) %>%
-  unique() %>%
-  group_by(Replicate.Name, Metabolite.Name) %>%
-  mutate(IS.Std.Diff = (abs(RT.Difference[Std.Type == "Internal_std"] - RT.Difference[Std.Type == "Standard"])))
-
-
-RT.midframe2 <- lapply(RT.midframe, function(x) mutate(x, IS.Std.Diff = (abs(RT.Difference[Std.Type == "Standard"] - RT.Difference[Std.Type == "Internal_std"]))))
-
-
-
-Wei.IS.smp.data.transect <- do.call(rbind, Wei.IS.mid_frame2) %>%
-  filter(!str_detect(Compound.Name, ",")) %>%
-  rename(Sample.Name = ReplicateName) %>%
-  select(Sample.Name:Area.with.QC, Concentration_nM, umol.in.vial_IS)
-
-  
-  #filter(str_detect(Replicate.Name, regex("std", ignore_case = TRUE))) %>%
+FA.plot <- ggplot(FA.18, aes(x = Metabolite.Name, y = RT.Value)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 90, size = 10),
+        axis.text.y = element_text(size = 10),
+        legend.position = "top",
+        strip.text = element_text(size = 10)) +
+  ggtitle("FA 18")
+print(FA.plot)
 
   
 
