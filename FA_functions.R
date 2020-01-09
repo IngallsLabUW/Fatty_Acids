@@ -107,6 +107,15 @@ RearrangeDatasets <- function(df, parameter) {
   return(df)
 }
 
+FindStdDev <- function(df) {
+  df.first <- df %>%
+    group_by(Metabolite.Name) %>%
+    group_split()
+  df.midframe <- lapply(df.first, function(x) mutate(x, Std.dev = sd(RT.Value, na.rm = TRUE)))
+  df.final <- bind_rows(df.midframe)
+  
+  return(df.final)
+}
 
 StandardizeMetabolites <- function(df) {
   df.standardized <- df %>%

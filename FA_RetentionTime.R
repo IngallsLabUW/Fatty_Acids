@@ -69,11 +69,7 @@ RT.Table <- size.fraction_0.2 %>%
          Min.RT.Value = min(RT.Value, na.rm = TRUE),
          Max.RT.Value = max(RT.Value, na.rm = TRUE)) %>%
   mutate(RT.Diff = RT.Value - RT.Expected) %>% 
-  #mutate(RT.Diff.abs = abs(RT.Value - RT.Expected)) %>%
   select(Replicate.Name, Metabolite.Name, RT.Expected, RT.Value, Mean.RT.Value:RT.Diff)
-  # mutate(Midrange.RT.Diff = (min(RT.Diff) + max(RT.Diff)) / 2) %>%
-  # mutate(High.Low = ifelse(RT.Diff > Midrange.RT.Diff, "High", "Low")) %>%
-  # select(Replicate.Name, Metabolite.Name, RT.Expected, RT.Value, Mean.RT.Value:High.Low)
 
 std.RT.plot <- ggplot(RT.Table, aes(x = Metabolite.Name, y = RT.Value)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -85,7 +81,43 @@ std.RT.plot <- ggplot(RT.Table, aes(x = Metabolite.Name, y = RT.Value)) +
 print(std.RT.plot)
 
 ################################################################################
-## K means clustering test 
+# FA 18 linear model test ----------------------------------------------------
+FA.18 <- RT.Table %>%
+  filter(str_detect(Metabolite.Name, "18")) %>%
+  ungroup()
+
+FA.18 <- FindStdDev(FA.18) 
+FA.18 <- FA.18 %>% 
+  mutate(Metabolite.Name = recode(Metabolite.Name,
+                                  `FA 18:0_Std` = "0",
+                                  `FA 18:1 cis-6_Std` = "1",
+                                  `FA 18:2_Std` = "2",
+                                  `FA 18:3_Std` = "3")) 
+FA.18$Metabolite.Name <- as.numeric(as.character(FA.18$Metabolite.Name))
+
+# Separate Replicates
+ggplot(FA.18, aes(fill=Replicate.Name, y=RT.Value, x=Metabolite.Name)) + 
+  geom_bar(position="dodge", stat="identity") +
+  geom_errorbar(aes(ymin=RT.Value - Std.dev, ymax=RT.Value + Std.dev), width=.2,
+                position=position_dodge(.9)) +
+  ggtitle("Fatty Acid 18: 0-4")
+
+# Grouped Replicates with Regression
+ggplot(FA.18, aes(x = Metabolite.Name, y = Mean.RT.Value)) +
+  geom_point(aes(color = "Averaged RT Value")) +
+  geom_point(aes(x = Metabolite.Name, y = RT.Expected, color = "Expected RT Value")) +
+  geom_smooth(method = "lm", color = "black", formula = y ~ x) +
+  ylim(0, 15) +
+  xlim(0, 5) +
+  theme(strip.text = element_text(size = 10)) +
+  ggtitle("Fatty Acid 18: 0-4")
+
+FA.model <- lm(formula = Mean.RT.Value ~ Metabolite.Name, data = FA.18)
+FA.model
+
+
+################################################################################
+# K means clustering ----------------------------------------------------
 ggplot(RT.Table, aes(RT.Value, Replicate.Name, color = Metabolite.Name)) + 
   geom_point() +
   ggtitle("Standard Retention Times")
@@ -141,7 +173,7 @@ Tolerance.Table.High <- RT.Table.clustered %>%
   mutate(Ave.High.Diff = abs(RT.Expected - Ave.High)) %>%
   select(-RT.Value) %>%
   unique()
-  
+
 Tolerance.Table.Low <- RT.Table.clustered %>%
   filter(High.Low == "Low") %>%
   unique() %>%
@@ -170,21 +202,6 @@ FA16_HighTolerance = unique(Full.Tolerance.Table$Ave.High.Diff)
 FA16_LowTolerance = unique(Full.Tolerance.Table$Ave.Low.Diff)
 
 
-
-################################################################################
-## FA 18 Test 
-
-FA.18 <- RT.Table %>%
-  filter(str_detect(Metabolite.Name, "18"))
-
-FA.plot <- ggplot(FA.18, aes(x = Metabolite.Name, y = RT.Value)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  theme(axis.text.x = element_text(angle = 90, size = 10),
-        axis.text.y = element_text(size = 10),
-        legend.position = "top",
-        strip.text = element_text(size = 10)) +
-  ggtitle("FA 18")
-print(FA.plot)
 
   
 
