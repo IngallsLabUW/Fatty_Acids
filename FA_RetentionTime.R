@@ -3,7 +3,7 @@ source("FA_Functions.R")
 
 # Use those FAs that have _Std in the Metabolite.Name. Compare to RT expected, not value.  
 # Check out weird blank flags. 
-# do different RT predictions/QCs for size fractionation. 
+# do different RT predictions/QCs for size fractionation. This has been done.
 
 pattern = "combined"
 
@@ -28,15 +28,18 @@ FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FAL
   
 combined.expected <- combined %>%
   left_join(FA.expected %>% select(Metabolite.Name, RT.Expected)) %>%
-  select(Replicate.Name, Metabolite.Name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type)
+  select(Replicate.Name, Metabolite.Name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type) %>%
+  mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", 
+                                ifelse(str_detect(Metabolite.Name, "IS"), "Internal.Standard", "NonStandard.Compound")))
 
 
 # Separate replicates by size fractionation ---------------------------------------------------
 # Currently we are just doing the 0.2 size fraction.
 size.fraction_0.2 <- combined.expected %>%
-  filter(!str_detect(Replicate.Name, "0.3")) %>%
-  mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", 
-                                ifelse(str_detect(Metabolite.Name, "IS"), "Internal.Standard", "NonStandard.Compound")))
+  filter(!str_detect(Replicate.Name, "0.3")) 
+
+size.fraction_0.3 <- combined.expected %>%
+  filter(!str_detect(Replicate.Name, "0.2")) 
 
 # First plot of retention time ----------------------------------------------------
 all.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = RT.Value, fill = Cmpd.with.Std)) +
