@@ -12,6 +12,8 @@
 # Fix the StandardizeVariables function
 
 library(ggplot2)
+library(plotly)
+library(reshape2)
 library(rlist)
 library(stringr)
 library(tidyverse)
