@@ -34,19 +34,36 @@ combined.expected <- combined %>%
 # Separate replicates by size fractionation ---------------------------------------------------
 # Currently we are just doing the 0.2 size fraction.
 size.fraction_0.2 <- combined.expected %>%
-  filter(!str_detect(Replicate.Name, "0.3")) 
+  filter(!str_detect(Replicate.Name, "0.3")) %>%
+  group_by(Metabolite.Name) %>%
+  mutate(Mean.RT.Value = mean(RT.Value, na.rm = TRUE),
+         Min.RT.Value = min(RT.Value, na.rm = TRUE),
+         Max.RT.Value = max(RT.Value, na.rm = TRUE))
 
 size.fraction_0.3 <- combined.expected %>%
-  filter(!str_detect(Replicate.Name, "0.2")) 
+  filter(!str_detect(Replicate.Name, "0.2")) %>%
+  group_by(Metabolite.Name) %>%
+  mutate(Mean.RT.Value = mean(RT.Value, na.rm = TRUE),
+         Min.RT.Value = min(RT.Value, na.rm = TRUE),
+         Max.RT.Value = max(RT.Value, na.rm = TRUE))
 
 dummy.data <- size.fraction_0.2 %>%
-  select(Replicate.Name, Metabolite.Name, RT.Value, RT.Expected, Cmpd.with.Std) %>%
-  mutate(Random = RT.Value + sample(1, size = nrow(dummy.data), replace = TRUE))
+  select(Replicate.Name, Metabolite.Name, RT.Value, RT.Expected, Mean.RT.Value, Cmpd.with.Std) %>%
+  group_by(Metabolite.Name, Replicate.Name) %>%
+  mutate(Random = runif(1, RT.Value, RT.Value + 1)) %>%
+  group_by(Metabolite.Name) %>%
+  mutate(Random.Mean = mean(Random))
+
+dummy.standards <- dummy.data %>%
+  filter(!str_detect(Replicate.Name, "IS")) %>%
+  filter(str_detect(Replicate.Name, "_Std_")) %>%
+  filter(str_detect(Metabolite.Name, "_Std")) 
 
 
 # First plot of retention time ----------------------------------------------------
-all.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = RT.Value, fill = Cmpd.with.Std)) +
+all.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = Mean.RT.Value, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Mean.RT.Value, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
@@ -55,8 +72,9 @@ ggtitle("Fatty Acids: 0.2 Size Fraction")
 print(all.RT.plot)
 
 # And with dummy data
-dummy.plot <- ggplot(dummy.data, aes(x = Metabolite.Name, y = Random, fill = Cmpd.with.Std)) +
+dummy.plot <- ggplot(dummy.data, aes(x = Metabolite.Name, y = Random.Mean, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Random.Mean, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
@@ -73,21 +91,39 @@ RT.Table <- size.fraction_0.2 %>%
   filter(!str_detect(Replicate.Name, "IS")) %>%
   filter(str_detect(Replicate.Name, "_Std_")) %>%
   filter(str_detect(Metabolite.Name, "_Std")) %>%
-  group_by(Metabolite.Name) %>%
-  mutate(Mean.RT.Value = mean(RT.Value, na.rm = TRUE),
-         Min.RT.Value = min(RT.Value, na.rm = TRUE),
-         Max.RT.Value = max(RT.Value, na.rm = TRUE)) %>%
   mutate(RT.Diff = RT.Value - RT.Expected) %>% 
   select(Replicate.Name, Metabolite.Name, RT.Expected, RT.Value, Mean.RT.Value:RT.Diff)
 
-std.RT.plot <- ggplot(RT.Table, aes(x = Metabolite.Name, y = RT.Value)) +
+std.RT.plot <- ggplot(RT.Table, aes(x = Metabolite.Name, y = Mean.RT.Value, label = Mean.RT.Value)) +
   geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Mean.RT.Value, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Fatty Acids: Standard Compounds")
 print(std.RT.plot)
+
+dummy.stds <- dummy.data %>%
+  filter(!str_detect(Replicate.Name, "IS")) %>%
+  filter(str_detect(Replicate.Name, "_Std_")) %>%
+  filter(str_detect(Metabolite.Name, "_Std")) %>%
+  group_by(Metabolite.Name) %>%
+  mutate(Random = mean(Random))
+
+dummy.std.RT.plot <- ggplot(dummy.stds, aes(x = Metabolite.Name, y = Random)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(Random, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
+  theme(axis.text.x = element_text(angle = 90, size = 10),
+        axis.text.y = element_text(size = 10),
+        legend.position = "top",
+        strip.text = element_text(size = 10)) +
+  ggtitle("Random Standards")
+print(dummy.std.RT.plot)
+
+
+require(gridExtra)
+grid.arrange(std.RT.plot, dummy.std.RT.plot, nrow=2)
 
 ################################################################################
 # FA 18 linear model test ----------------------------------------------------
