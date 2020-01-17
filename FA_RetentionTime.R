@@ -9,11 +9,11 @@ pattern = "combined"
 filename <- RemoveCsv(list.files(path = "data_processed/", pattern = pattern))
 filepath <- file.path("data_processed", paste(filename, ".csv", sep = ""))
 
-combined <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = FALSE, header = TRUE)) %>%
+fatty.acids <- assign(make.names(filename), read.csv(filepath, stringsAsFactors = FALSE, header = TRUE)) %>%
   mutate(Run.Type = (tolower(str_extract(Replicate.Name, "(?<=_)[^_]+(?=_)")))) 
 
 # Create file isolating runs that have comments.
-file.comments <- combined %>%
+file.comments <- fatty.acids %>%
   select(Replicate.Name, Metabolite.Name, Comment) %>%
   filter(!nchar(Comment) < 5)
 
@@ -21,40 +21,37 @@ file.comments <- combined %>%
 FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
   rename(Metabolite.Name = Name) %>%
   rename(RT.Expected = RT) %>%
-  rename(MZ.Value = m.z) %>%
-  rename(Adduct.Type = Charge)
+  select(Metabolite.Name, RT.Expected)
   
-combined.expected <- combined %>%
-  left_join(FA.expected %>% select(Metabolite.Name, RT.Expected)) %>%
-  select(Replicate.Name, Metabolite.Name, Area.Value:SN.Value, RT.Expected, Reference.RT, Run.Type) %>%
+FA.expected <- fatty.acids %>%
+  left_join(FA.expected) %>%
   mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", 
                                 ifelse(str_detect(Metabolite.Name, "IS"), "Internal.Standard", "NonStandard.Compound"))) %>%
   group_by(Metabolite.Name) %>%
   mutate(Mean.RT.Value = mean(RT.Value, na.rm = TRUE),
          Min.RT.Value = min(RT.Value, na.rm = TRUE),
-         Max.RT.Value = max(RT.Value, na.rm = TRUE))
-
-
+         Max.RT.Value = max(RT.Value, na.rm = TRUE)) %>%
+  select(Replicate.Name, Metabolite.Name, RT.Value, RT.Expected, Mean.RT.Value:Max.RT.Value, Cmpd.with.Std) 
 
 # Separate replicates by size fractionation ---------------------------------------------------
 # Currently we are just doing the 0.2 size fraction.
-size.fraction_0.2 <- combined.expected %>%
+size.fraction_0.2 <- FA.expected %>%
   filter(!str_detect(Replicate.Name, "0.3")) 
 
-size.fraction_0.3 <- combined.expected %>%
+size.fraction_0.3 <- FA.expected %>%
   filter(!str_detect(Replicate.Name, "0.2")) 
 
 # Create random values
 dummy.data <- size.fraction_0.2 %>%
-  select(Replicate.Name, Metabolite.Name, RT.Value, RT.Expected, Mean.RT.Value, Cmpd.with.Std) %>%
   group_by(Metabolite.Name, Replicate.Name) %>%
   mutate(Random.RT = runif(1, RT.Value, RT.Value + 1)) %>%
   group_by(Metabolite.Name) %>%
-  mutate(Random.Mean = mean(Random.RT))
+  mutate(Random.Mean = mean(Random.RT)) %>%
+  select(Replicate.Name:RT.Expected, Mean.RT.Value, Random.RT, Random.Mean, Cmpd.with.Std)
 
 
 # First plot of retention times ----------------------------------------------------
-all.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = Mean.RT.Value, fill = Cmpd.with.Std)) +
+real.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = Mean.RT.Value, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = round(Mean.RT.Value, digits = 2)), 
             position=position_dodge(width=0.9), 
@@ -78,11 +75,11 @@ dummy.plot <- ggplot(dummy.data, aes(x = Metabolite.Name, y = Random.Mean, fill 
   ggtitle("Random RT Values")
 
 require(gridExtra)
-grid.arrange(all.RT.plot, dummy.plot, nrow=2)
+grid.arrange(real.RT.plot, dummy.plot, nrow=2)
 
 ################################################################################
-# Retention Time Table ----------------------------------------------------
-RT.Standards <- size.fraction_0.2 %>%
+# Retention Time Tables ----------------------------------------------------
+real.standards <- size.fraction_0.2 %>%
   filter(!str_detect(Replicate.Name, "IS")) %>%
   filter(str_detect(Replicate.Name, "_Std_")) %>%
   filter(str_detect(Metabolite.Name, "_Std")) %>%
@@ -94,11 +91,11 @@ dummy.standards <- dummy.data %>%
   filter(str_detect(Replicate.Name, "_Std_")) %>%
   filter(str_detect(Metabolite.Name, "_Std")) %>%
   group_by(Metabolite.Name) %>%
-  mutate(Random.Mean = mean(Random.RT))
+  mutate(Random.RT.Mean = mean(Random.RT)) 
 
 
 # Real + Dummy standards plotted ----------------------------------------------------
-std.RT.plot <- ggplot(RT.Standards, aes(x = Metabolite.Name, y = Mean.RT.Value, label = Mean.RT.Value)) +
+std.RT.plot <- ggplot(real.standards, aes(x = Metabolite.Name, y = Mean.RT.Value, label = Mean.RT.Value)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = round(Mean.RT.Value, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
@@ -106,8 +103,6 @@ std.RT.plot <- ggplot(RT.Standards, aes(x = Metabolite.Name, y = Mean.RT.Value, 
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Fatty Acids: Standard Compounds")
-print(std.RT.plot)
-
 
 dummy.std.RT.plot <- ggplot(dummy.standards, aes(x = Metabolite.Name, y = Random.Mean)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -117,14 +112,11 @@ dummy.std.RT.plot <- ggplot(dummy.standards, aes(x = Metabolite.Name, y = Random
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Random Standards")
-print(dummy.std.RT.plot)
 
-
-# Real and Random standards side by side ----------------------------------------------------
 stds.together <- dummy.standards %>%
-  select(Metabolite.Name, Mean.RT.Value, Random.Mean) %>%
+  select(Metabolite.Name, Mean.RT.Value, Random.RT.Mean) %>%
   rename(Real.RT.Value = Mean.RT.Value) %>%
-  rename(Random.RT.Value = Random.Mean) %>%
+  rename(Random.RT.Value = Random.RT.Mean) %>%
   unique()
 
 stds.together <- melt(stds.together) %>%
@@ -140,7 +132,7 @@ stds.together.plot <- ggplot(stds.together, aes(Metabolite.Name, Retention.Time,
 stds.together.plot <- ggplotly(stds.together.plot)
 stds.together.plot
 
-
+# Real + Dummy standards plotted ----------------------------------------------------
 stds.differences <- stds.together %>%
   group_by(Metabolite.Name) %>%
   mutate(Difference = abs(Retention.Time[RT.Type == "Real.RT.Value"] - Retention.Time[RT.Type == "Random.RT.Value"])) %>%
@@ -162,12 +154,12 @@ high.low <- size.fraction_0.2 %>%
   mutate(Low.RT = RT.Value + Low.value) %>%
   filter(!str_detect(Metabolite.Name, "Std|IS"))
 
-high.low.test <- melt(high.low) %>%
+high.low.plot.table <- melt(high.low) %>%
   rename(RT.Value.Prediction = variable) %>%
   rename(RT.Value = value)
 
 
-prediction.plot <- ggplot(high.low.test, aes(fill = RT.Value.Prediction, y = RT.Value, x = Metabolite.Name)) + 
+prediction.plot <- ggplot(high.low.plot.table, aes(fill = RT.Value.Prediction, y = RT.Value, x = Metabolite.Name)) + 
   geom_bar(position="dodge", stat="identity") +
   scale_fill_manual(values=c("firebrick4", "navyblue", "skyblue")) +
   theme(axis.text.x = element_text(angle = 90, size = 10, vjust = 0.5),
