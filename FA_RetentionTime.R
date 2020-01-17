@@ -169,6 +169,7 @@ high.low.test <- melt(high.low) %>%
 
 prediction.plot <- ggplot(high.low.test, aes(fill = RT.Value.Prediction, y = RT.Value, x = Metabolite.Name)) + 
   geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values=c("firebrick4", "navyblue", "skyblue")) +
   theme(axis.text.x = element_text(angle = 90, size = 10, vjust = 0.5),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
