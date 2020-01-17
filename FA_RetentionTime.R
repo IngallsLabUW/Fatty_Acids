@@ -144,14 +144,14 @@ stds.differences <- stds.together %>%
   select(Min.diff, Max.diff) %>%
   unique()
 
-High.value <- stds.differences$Max.diff
-Low.value <- stds.differences$Min.diff
+high.estimate <- stds.differences$Max.diff
+low.estimate <- stds.differences$Min.diff
 
 # High and Low estimate ----------------------------------------------------
-high.low <- size.fraction_0.2 %>%
+high.low.predictions <- size.fraction_0.2 %>%
   select(Replicate.Name, Metabolite.Name, RT.Value) %>%
-  mutate(High.RT = RT.Value + High.value) %>%
-  mutate(Low.RT = RT.Value + Low.value) %>%
+  mutate(High.RT = RT.Value + high.estimate) %>%
+  mutate(Low.RT = RT.Value + low.estimate) %>%
   filter(!str_detect(Metabolite.Name, "Std|IS"))
 
 high.low.plot.table <- melt(high.low) %>%
@@ -161,7 +161,7 @@ high.low.plot.table <- melt(high.low) %>%
 
 prediction.plot <- ggplot(high.low.plot.table, aes(fill = RT.Value.Prediction, y = RT.Value, x = Metabolite.Name)) + 
   geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual(values=c("firebrick4", "navyblue", "skyblue")) +
+  scale_fill_manual(values=c("firebrick3", "navyblue", "skyblue")) +
   theme(axis.text.x = element_text(angle = 90, size = 10, vjust = 0.5),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
