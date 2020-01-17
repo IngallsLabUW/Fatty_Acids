@@ -17,7 +17,7 @@ file.comments <- combined %>%
   select(Replicate.Name, Metabolite.Name, Comment) %>%
   filter(!nchar(Comment) < 5)
 
-# Import expected retention time files
+# Import expected retention time files ----------------------------------------------------
 FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
   rename(Metabolite.Name = Name) %>%
   rename(RT.Expected = RT) %>%
@@ -44,18 +44,21 @@ size.fraction_0.2 <- combined.expected %>%
 size.fraction_0.3 <- combined.expected %>%
   filter(!str_detect(Replicate.Name, "0.2")) 
 
+# Create random values
 dummy.data <- size.fraction_0.2 %>%
   select(Replicate.Name, Metabolite.Name, RT.Value, RT.Expected, Mean.RT.Value, Cmpd.with.Std) %>%
   group_by(Metabolite.Name, Replicate.Name) %>%
-  mutate(Random = runif(1, RT.Value, RT.Value + 1)) %>%
+  mutate(Random.RT = runif(1, RT.Value, RT.Value + 1)) %>%
   group_by(Metabolite.Name) %>%
-  mutate(Random.Mean = mean(Random))
+  mutate(Random.Mean = mean(Random.RT))
 
 
 # First plot of retention times ----------------------------------------------------
 all.RT.plot <- ggplot(size.fraction_0.2, aes(x = Metabolite.Name, y = Mean.RT.Value, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(Mean.RT.Value, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
+  geom_text(aes(label = round(Mean.RT.Value, digits = 2)), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25, size = 2.5) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
@@ -65,7 +68,9 @@ ggtitle("Fatty Acids: 0.2 Size Fraction")
 # And with dummy data
 dummy.plot <- ggplot(dummy.data, aes(x = Metabolite.Name, y = Random.Mean, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(Random.Mean, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
+  geom_text(aes(label = round(Random.Mean, digits = 2)), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25, size = 2.5) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
@@ -89,9 +94,10 @@ dummy.standards <- dummy.data %>%
   filter(str_detect(Replicate.Name, "_Std_")) %>%
   filter(str_detect(Metabolite.Name, "_Std")) %>%
   group_by(Metabolite.Name) %>%
-  mutate(Random = mean(Random))
+  mutate(Random.Mean = mean(Random.RT))
 
 
+# Real + Dummy standards plotted ----------------------------------------------------
 std.RT.plot <- ggplot(RT.Standards, aes(x = Metabolite.Name, y = Mean.RT.Value, label = Mean.RT.Value)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = round(Mean.RT.Value, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
@@ -100,38 +106,83 @@ std.RT.plot <- ggplot(RT.Standards, aes(x = Metabolite.Name, y = Mean.RT.Value, 
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Fatty Acids: Standard Compounds")
+print(std.RT.plot)
 
-dummy.std.RT.plot <- ggplot(dummy.standards, aes(x = Metabolite.Name, y = Random)) +
+
+dummy.std.RT.plot <- ggplot(dummy.standards, aes(x = Metabolite.Name, y = Random.Mean)) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(Random, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
+  geom_text(aes(label = round(Random.Mean, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Random Standards")
+print(dummy.std.RT.plot)
 
 
-# Real and Random standards side by side
+# Real and Random standards side by side ----------------------------------------------------
 stds.together <- dummy.standards %>%
   select(Metabolite.Name, Mean.RT.Value, Random.Mean) %>%
   rename(Real.RT.Value = Mean.RT.Value) %>%
   rename(Random.RT.Value = Random.Mean) %>%
   unique()
 
-stds.together <- melt(stds.together)
-stds.together.plot <- ggplot(stds.together, aes(Metabolite.Name, value, fill = variable)) +
+stds.together <- melt(stds.together) %>%
+  rename(RT.Type = variable) %>%
+  rename(Retention.Time = value)
+stds.together.plot <- ggplot(stds.together, aes(Metabolite.Name, Retention.Time, fill = RT.Type)) +
   geom_bar(stat = "identity", position = "dodge") +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
         strip.text = element_text(size = 10)) +
-  ggtitle("Real vs Random Retention Times")
+  ggtitle("Real vs Random Standards Retention Times")
 stds.together.plot <- ggplotly(stds.together.plot)
 stds.together.plot
 
+
+stds.differences <- stds.together %>%
+  group_by(Metabolite.Name) %>%
+  mutate(Difference = abs(Retention.Time[RT.Type == "Real.RT.Value"] - Retention.Time[RT.Type == "Random.RT.Value"])) %>%
+  select(Metabolite.Name, Difference) %>%
+  unique() %>%
+  ungroup() %>%
+  mutate(Min.diff = min(Difference)) %>%
+  mutate(Max.diff = max(Difference)) %>%
+  select(Min.diff, Max.diff) %>%
+  unique()
+
+High.value <- stds.differences$Max.diff
+Low.value <- stds.differences$Min.diff
+
+# High and Low estimate ----------------------------------------------------
+high.low <- size.fraction_0.2 %>%
+  select(Replicate.Name, Metabolite.Name, RT.Value) %>%
+  mutate(High.RT = RT.Value + High.value) %>%
+  mutate(Low.RT = RT.Value + Low.value) %>%
+  filter(!str_detect(Metabolite.Name, "Std|IS"))
+
+high.low.test <- melt(high.low) %>%
+  rename(RT.Value.Prediction = variable) %>%
+  rename(RT.Value = value)
+
+
+prediction.plot <- ggplot(high.low.test, aes(fill = RT.Value.Prediction, y = RT.Value, x = Metabolite.Name)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x = element_text(angle = 90, size = 10, vjust = 0.5),
+        axis.text.y = element_text(size = 10),
+        legend.position = "top",
+        strip.text = element_text(size = 10)) + 
+  ggtitle("Predicted Fatty Acid Retention Times")
+prediction.plot <- ggplotly(prediction.plot)
+prediction.plot
+
+
+
+
 ################################################################################
 # FA 18 linear model test ----------------------------------------------------
-FA.18 <- RT.Table %>%
+FA.18 <- RT.Standards %>%
   filter(str_detect(Metabolite.Name, "18")) %>%
   ungroup()
 
