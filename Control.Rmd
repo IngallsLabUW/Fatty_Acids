@@ -73,10 +73,12 @@ Outputs:
 
 *User action required*
 Enter the file.pattern and matching.pattern required for your files. 
-This should be a character string that applies to all the MSDial files from your run.
+The file.pattern variable should be a character string that applies to all the MSDial files from your run.
+The matching.pattern variable helps the program 
 
 ```{r Pattern matching, include = TRUE}
 file.pattern <- "FA"
+matching.pattern <- "FA.data"
 
 print(paste("Your file pattern is:", file.pattern))
 ```
@@ -87,9 +89,8 @@ source("src/MSDial_Import.R")
 print("Required files imported.")
 ```
 
-
 *User action required*
-Enter the existing filenames of your run. The above code assigns the variables in R to their filename in the directory, so if your positive Area file is "data_processed/PositiveArea.csv", it will be imported to this code as PositiveArea. Those files need to be reassigned to Area.positive so the rest of the code will know which files to edit for the pipeline steps.
+Enter the existing filenames of your run. The above code assigns the variables in R to their filename in the directory, so if your positive Area file is "data_raw/PositiveArea.csv", it will be imported to this code as PositiveArea. Those files need to be reassigned to the given variables so the rest of the code will know which files to edit for the pipeline steps.
 
 Comment or uncomment the block of variable names appropriate for your run.
 
@@ -97,29 +98,17 @@ Comment or uncomment the block of variable names appropriate for your run.
 # Comment out the run not being used.
 
 # Cyano variables: 
-# Area.RP.Cyano <- Area_CYANO_EddyTransect
-# Mz.RP.Cyano   <- Mz_CYANO_EddyTransect
-# RT.RP.Cyano   <- RT_CYANO_EddyTransect
-# SN.RP.Cyano   <- SN_CYANO_EddyTransect
-
-# HILIC variables: 
-Area.positive <- Area_HILICPos_Example
-Mz.positive   <- Mz_HILICPos_Example
-RT.positive   <- RT_HILICPos_Example
-SN.positive   <- SN_HILICPos_Example
-
-Area.negative <- Area_HILICNeg_Example
-Mz.negative   <- Mz_HILICNeg_Example
-RT.negative   <- RT_HILICNeg_Example
-SN.negative   <- SN_HILICNeg_Example
+Area.FA.data <- Area_KM1906_FA_DepthProfiles
+Mz.FA.data <- Mz_KM1906_FA_DepthProfiles
+RT.FA.data <- RT_KM1906_FA_DepthProfiles
+SN.FA.data <- SN_KM1906_FA_DepthProfiles
 
 print(paste(file.pattern, "variables assigned."))
-
 ```
 
 Rearrange and export.
 ```{r Dataset rearrangement, include = TRUE}
-source("src/MSDial_Rearrange.R")
+source("src/FA_Rearrange.R")
 
 print("Data rearrange complete.")
 ```
