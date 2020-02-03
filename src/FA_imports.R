@@ -1,8 +1,4 @@
-source("FA_Functions.R")
-
-# Fill out user data --------------------------------------------------
-# The matching variable should be included in every MSDial file in the data_raw folder
-matching.variable <- "FA"
+# MSDial import file.
 
 # Ensure correct columns are dropped from imports.
 columns.to.drop <- c('Formula', 'Ontology', 'INCHIKEY', 

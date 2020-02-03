@@ -1,25 +1,5 @@
 ## Function definitions ##
 
-# TODO --------------------------------------------------------
-# Organize directory referencing a little easier? Set value ahead of time?
-# Nested loop or list comprehension for renaming the uploads. Functions?
-# Order function descriptions neatly at beginning of script.
-# Cleanly name items in the upload, rather than manually changing it to SN, RZ, etc.
-# Figure out a better way to choose columns out of MSDIAL
-# Add function documentation and comments to clarify the process.
-# Make function for always downloading the most up to date Ingalls lab standards.
-# Figure out a way to preserve the QC parameter values.
-# Fix the StandardizeVariables function
-
-library(ggplot2)
-library(plotly)
-library(reshape2)
-library(rlist)
-library(stringr)
-library(tidyverse)
-library(tidyr)
-options(scipen=999)
-
 SetHeader <- function(df) {
   # Remove empty or unnecessary lines from machine output, and make column names headers.
   #
@@ -151,12 +131,3 @@ CheckBlankMatcher <- function(blank.matcher) {
   
   return(blank.matcher)
 }
-
-# Unused functions --------------------------------------------------------
-# FilterUnknowns <- function(df) {
-#   df <- df %>%  
-#     filter(Metabolite.Name != 'Unknown') %>%
-#     select(-c(Average.Rt.min., Formula, Ontology, INCHIKEY, SMILES, Isotope.tracking.parent.ID, Isotope.tracking.weight.number, 
-#               MS1.isotopic.spectrum, MS.MS.spectrum, Average.Mz, Post.curation.result, Fill.., Annotation.tag..VS1.0., RT.matched, 
-#               m.z.matched, MS.MS.matched, Manually.modified, Total.score:Fragment.presence..))
-# }
