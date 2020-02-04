@@ -1,4 +1,3 @@
-
 # Import all files --------------------------------------------------
 filenames <- RemoveCsv(list.files(path = 'data_raw', pattern = file.pattern))
 

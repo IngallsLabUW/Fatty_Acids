@@ -10,22 +10,18 @@ This markdown script controls the procedure for predicting the retention times o
 *FIX THIS*
 It contains four major sections:
 Section I: Import and cleaning/rearranging of data.
-Section II: Quality control using user-defined parameters.
+Section II: Create predictive fatty acid retention time graphics.
 
 
 ```{r setup, include = TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 
-#library(ggplot2)
 library(plotly)
 library(reshape2)
-#library(rlist)
-#library(stringr)
 library(tidyverse)
-#library(tidyr)
 options(scipen=999)
 
-source("src/FA_functions.R")
+source("src/Functions.R")
 
 processed.folder <- "data_processed" 
 figures.folder <- "figures"
@@ -64,38 +60,39 @@ Standardize dataset by removing "Ingalls_" prefixes from compound names, and rem
 ***
 Inputs: 
 "data_raw/*file.pattern*.csv
+
 Outputs: 
 "data_intermediates/MSDial_combined_*file.pattern*_*DATE*.csv"
 ***
 
 *User action required*
-Enter the file.pattern and matching.pattern required for your files. 
-The file.pattern variable should be a character string that applies to all the MSDial files from your run.
-The matching.pattern variable helps the program 
+Enter the file.pattern required for your files. 
+- The file.pattern variable should be a character string that applies to all the MSDial files from your run.
 
 ```{r Pattern matching, include = TRUE}
 file.pattern <- "FA"
-matching.pattern <- "FA.data"
 
 print(paste("Your file pattern is:", file.pattern))
 ```
 
 ```{r MSDial Imports, include = TRUE}
-source("src/MSDial_Import.R")
+source("src/File_imports.R")
 
 print("Required files imported.")
 ```
 
 *User action required*
-Enter the existing filenames of your run. The above code assigns the variables in R to their filename in the directory, so if your positive Area file is "data_raw/PositiveArea.csv", it will be imported to this code as PositiveArea. Those files need to be reassigned to the given variables so the rest of the code will know which files to edit for the pipeline steps.
+Enter the matching pattern to help the program identify your files. 
+This matching pattern needs to be a string that is unique to the file names that are defined just below. 
 
-Comment or uncomment the block of variable names appropriate for your run.
+Enter the existing filenames of your run. The above code assigns the variables in R to their filename in the directory, so if your positive Area file is "data_raw/PositiveArea.csv", it will be imported to this code as PositiveArea. 
+Those files need to be reassigned to the given variables so the rest of the code will know which files to edit for the pipeline steps.
 
 ```{r Dataset reassignment, include = TRUE}
-# Comment out the run not being used.
+matching.pattern <- "FA.data"
 
-# Cyano variables: 
-Area.FA.data <- Area_KM1906_FA_DepthProfiles
+# Dataset variables: 
+Area.FA.data <- Area_KM1906_FA_DepthProfiles # Enter your filenames here
 Mz.FA.data <- Mz_KM1906_FA_DepthProfiles
 RT.FA.data <- RT_KM1906_FA_DepthProfiles
 SN.FA.data <- SN_KM1906_FA_DepthProfiles
@@ -105,34 +102,37 @@ print(paste(file.pattern, "variables assigned."))
 
 Rearrange and export.
 ```{r Dataset rearrangement, include = TRUE}
-source("src/FA_Rearrange.R")
+source("src/MSDial_rearrange.R")
 
 print("Data rearrange complete.")
 ```
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
 
-Section II: Use standard runs to predict shifting retention times 
+Section II: Use fatty acid standard runs to predict shifting retention times in those compounds without standards.
 
 In the Retention Prediction step:
 Import files.
-Identify run types and check if all are present (blk, smp, std, poo).
+Do required data splitting (ie, split by size fractionation or location, depending on the research question.)
+Create random "dummy" data to imitate comparison runs.
+Visualize real and dummy data together.
 
 
 ***
 Inputs: 
 "data_intermediate/MSDial_combined_*file.pattern*_*DATE*.csv"
-"data_extras/FA_Expected_RT.csv"
+"data_extras/*<file_with_expected_RTs>*.csv" 
 
 Outputs: 
+"figures/Real_and_Fake_RT_*DATE*.png"
 
-"data_processed/MSDial_QC_Output_*file.pattern*_*DATE*.csv"
+
 ***
 
 ```{r Import retention time files, include = TRUE}
-source("src/RT_Import.R")
+source("src/RT_file_import.R")
 
-print("Fatty Acid data combined with expected data.")
+print("Imported fatty Acid data combined with expected data.")
 ```
 
 Separate replicates by size fractionation.
@@ -156,8 +156,8 @@ dummy.data <- fatty.acid_0.2 %>%
   mutate(Random.Mean = mean(Random.RT)) %>%
   select(Replicate.Name:RT.Expected, Mean.RT.Value, Random.RT, Random.Mean, Cmpd.with.Std)
 
+print("Column with random data added to real data.")
 ```
-
 
 First plot of retention times  
 ```{r Retention time plot, include = TRUE}
@@ -175,6 +175,7 @@ ggtitle("Fatty Acids: 0.2 Size Fraction")
 # And with dummy data
 dummy.plot <- ggplot(dummy.data, aes(x = Metabolite.Name, y = Random.Mean, fill = Cmpd.with.Std)) +
   geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("firebrick3", "chartreuse4", "deepskyblue3")) +
   geom_text(aes(label = round(Random.Mean, digits = 2)), 
             position=position_dodge(width=0.9), 
             vjust=-0.25, size = 2.5) +
@@ -184,8 +185,20 @@ dummy.plot <- ggplot(dummy.data, aes(x = Metabolite.Name, y = Random.Mean, fill 
         strip.text = element_text(size = 10)) +
   ggtitle("Random RT Values")
 
+print("Plots created.")
+```
+
+Plot to console real and random data together, and save to the figures/ folder.
+```{r Combined plots, include = TRUE, fig.align="center", fig.width=9, fig.height=7}
 require(gridExtra)
-grid.arrange(real.RT.plot, dummy.plot, nrow=2)
+
+real.and.dummy.plot <- grid.arrange(real.RT.plot, dummy.plot, nrow = 2)
+
+currentDate <- Sys.Date()
+plotFileName <- paste("figures/All_Real_and_Fake_RT_", currentDate, ".png", sep = "")
+
+ggsave(plotFileName, plot = real.and.dummy.plot, dpi = 600, width = 10, height = 10, units = "in")
+
 ```
 
 
@@ -205,13 +218,14 @@ dummy.standards <- dummy.data %>%
   group_by(Metabolite.Name) %>%
   mutate(Random.RT.Mean = mean(Random.RT)) 
 
+print("Standard runs isolated.")
+
 ```
 
-
-Real + Dummy standards plotted 
-```{r Plot real and dummy standards, include = TRUE}
+Real + Dummy standards defined 
+```{r Define real and dummy standards, include = TRUE}
 std.RT.plot <- ggplot(real.standards, aes(x = Metabolite.Name, y = Mean.RT.Value, label = Mean.RT.Value)) +
-  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(stat = "identity", position = "dodge", fill = "cornflowerblue") +
   geom_text(aes(label = round(Mean.RT.Value, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
@@ -220,13 +234,18 @@ std.RT.plot <- ggplot(real.standards, aes(x = Metabolite.Name, y = Mean.RT.Value
   ggtitle("Fatty Acids: Standard Compounds")
 
 dummy.std.RT.plot <- ggplot(dummy.standards, aes(x = Metabolite.Name, y = Random.Mean)) +
-  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(stat = "identity", position = "dodge", fill = "deepskyblue3") +
   geom_text(aes(label = round(Random.Mean, digits = 2)), position=position_dodge(width=0.9), vjust=-0.25) +
   theme(axis.text.x = element_text(angle = 90, size = 10),
         axis.text.y = element_text(size = 10),
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Random Standards")
+```
+
+Visualize standard plots.
+```{r Combined plots, include = TRUE, fig.align="center", fig.width=9, fig.height=7}
+#require(gridExtra)
 
 stds.together <- dummy.standards %>%
   select(Metabolite.Name, Mean.RT.Value, Random.RT.Mean) %>%
@@ -244,10 +263,13 @@ stds.together.plot <- ggplot(stds.together, aes(Metabolite.Name, Retention.Time,
         legend.position = "top",
         strip.text = element_text(size = 10)) +
   ggtitle("Real vs Random Standards Retention Times")
-stds.together.plot <- ggplotly(stds.together.plot)
-stds.together.plot
-```
 
+stds.together.plot.g <- ggplotly(stds.together.plot)
+stds.together.plot.g
+
+plotFileName <- paste("figures/Stds_Real_and_Fake_", currentDate, ".png", sep = "")
+ggsave(plotFileName, plot = stds.together.plot, dpi = 600, width = 10, height = 10, units = "in")
+```
 
 Real + Dummy standards plotted
 ```{r High and low prediction estimate, include = TRUE}
@@ -264,12 +286,13 @@ stds.differences <- stds.together %>%
 
 high.estimate <- stds.differences$Max.diff
 low.estimate <- stds.differences$Min.diff
+
+print("Standard differences created.")
 ```
 
 
 Combine estimates and plot
-```{r Plot estimates, include = TRUE}
-
+```{r Plot estimates, include = TRUE, fig.align="center", fig.width=15, fig.height=7}
 high.low.predictions <- fatty.acid_0.2 %>%
   select(Replicate.Name, Metabolite.Name, RT.Value) %>%
   mutate(High.RT = RT.Value + high.estimate) %>%
@@ -289,10 +312,10 @@ prediction.plot <- ggplot(high.low.plot.table, aes(fill = RT.Value.Prediction, y
         legend.position = "top",
         strip.text = element_text(size = 10)) + 
   ggtitle("Predicted Fatty Acid Retention Times")
-prediction.plot <- ggplotly(prediction.plot)
-prediction.plot
+prediction.plot.g <- ggplotly(prediction.plot)
+prediction.plot.g
+
+plotFileName <- paste("figures/Predicted_RTs_", currentDate, ".png", sep = "")
+ggsave(plotFileName, plot = prediction.plot, dpi = 600, width = 10, height = 10, units = "in")
 ```
 
-
-
-------------------------------------------------------------------------------------------------------------------------------------------------

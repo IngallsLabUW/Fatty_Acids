@@ -107,27 +107,3 @@ StandardizeMetabolites <- function(df) {
   
   return(df.standardized)
 }
-
-
-
-# Do we need this function?
-CheckBlankMatcher <- function(blank.matcher) {
-  # Takes a blank matcher file and separates any multi-value variable
-  # columns into their own row.
-  #
-  # Args:
-  #   blank.matcher: CSV entered by user to match samples with
-  #   appropriate blanks.
-  #
-  # Returns:
-  #   blank.matcher: new CSV with any duplicate values separated
-  #   into their own rows.
-  #
-  blank.matcher <- do.call("rbind", Map(data.frame,
-                                        Blank.Name = strsplit(as.character(blank.matcher$Blank.Name), ","),
-                                        Replicate.Name = (blank.matcher$Replicate.Name))
-  )
-  blank.matcher <- blank.matcher[c(2, 1)]
-  
-  return(blank.matcher)
-}
