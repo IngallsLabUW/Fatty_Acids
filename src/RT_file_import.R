@@ -14,12 +14,7 @@ file.comments <- fatty.acids %>%
   select(Replicate.Name, Metabolite.Name, Comment) %>%
   filter(!nchar(Comment) < 5)
 
-# Import expected retention time files ----------------------------------------------------
-FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
-  rename(Metabolite.Name = Name) %>%
-  rename(RT.Expected = RT) %>%
-  select(Metabolite.Name, RT.Expected)
-  
+# Join expected fatty acid file with data.  
 FA.expected <- fatty.acids %>%
   left_join(FA.expected) %>%
   mutate(Cmpd.with.Std = ifelse(str_detect(Metabolite.Name, "_Std"), "Standard.Compound", 

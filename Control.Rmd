@@ -7,8 +7,7 @@ output: html_document
 
 This markdown script controls the procedure for predicting the retention times of targeted fatty acids run on the QExactive Mass Spectrometer.
 
-*FIX THIS*
-It contains four major sections:
+It contains two major sections:
 Section I: Import and cleaning/rearranging of data.
 Section II: Create predictive fatty acid retention time graphics.
 
@@ -82,20 +81,22 @@ print("Required files imported.")
 ```
 
 *User action required*
+Enter the existing filenames of your run, reassigning their values to the strings below. 
+
+The "File_imports.R" script assigns the variables in R to their filename in the directory, so if your positive Area file is "data_raw/PositiveArea.csv", it will be imported to this code as PositiveArea. 
+Those imported files need to be renamed to the given variables so the rest of the code will know which files to edit for the pipeline steps.
+
 Enter the matching pattern to help the program identify your files. 
 This matching pattern needs to be a string that is unique to the file names that are defined just below. 
 
-Enter the existing filenames of your run. The above code assigns the variables in R to their filename in the directory, so if your positive Area file is "data_raw/PositiveArea.csv", it will be imported to this code as PositiveArea. 
-Those files need to be reassigned to the given variables so the rest of the code will know which files to edit for the pipeline steps.
-
 ```{r Dataset reassignment, include = TRUE}
-matching.pattern <- "FA.data"
-
 # Dataset variables: 
 Area.FA.data <- Area_KM1906_FA_DepthProfiles # Enter your filenames here
 Mz.FA.data <- Mz_KM1906_FA_DepthProfiles
 RT.FA.data <- RT_KM1906_FA_DepthProfiles
 SN.FA.data <- SN_KM1906_FA_DepthProfiles
+
+matching.pattern <- "FA.data"
 
 print(paste(file.pattern, "variables assigned."))
 ```
@@ -107,7 +108,7 @@ source("src/MSDial_rearrange.R")
 print("Data rearrange complete.")
 ```
 
-------------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------
 
 Section II: Use fatty acid standard runs to predict shifting retention times in those compounds without standards.
 
@@ -116,6 +117,7 @@ Import files.
 Do required data splitting (ie, split by size fractionation or location, depending on the research question.)
 Create random "dummy" data to imitate comparison runs.
 Visualize real and dummy data together.
+Using the compounds that have standards, use the max and min difference between them to create a prediction interval for retention times.
 
 
 ***
@@ -125,11 +127,16 @@ Inputs:
 
 Outputs: 
 "figures/Real_and_Fake_RT_*DATE*.png"
-
-
 ***
 
+*User action required*
+Ensure that the file containing the expected retention time (defined as FA.expected) is entered properly below.
 ```{r Import retention time files, include = TRUE}
+FA.expected <- read.csv("data_extras/FA_Expected_RT.csv", stringsAsFactors = FALSE) %>%
+  rename(Metabolite.Name = Name) %>%
+  rename(RT.Expected = RT) %>%
+  select(Metabolite.Name, RT.Expected)
+
 source("src/RT_file_import.R")
 
 print("Imported fatty Acid data combined with expected data.")
